@@ -1,0 +1,8 @@
+com\test\HelloSpringController.class
+com\test\dao\BookDao.class
+com\test\dao\BookExample$Criteria.class
+com\test\dao\BookExample$Criterion.class
+com\test\dao\BookExample$GeneratedCriteria.class
+com\test\mapper\BookMapper.class
+com\test\dao\Book.class
+com\test\dao\BookExample.class
