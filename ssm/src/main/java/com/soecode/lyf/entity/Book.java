@@ -10,4 +10,7 @@ public class Book {
 
     // 省略构造方法，getter和setter方法，toString方法
 
+    public String getname() {
+    	return name;
+    }
 }
