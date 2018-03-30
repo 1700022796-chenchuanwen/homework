@@ -1,17 +1,14 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <!-- 指定了当前POM的版本 -->
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.cnherb.spider</groupId><!-- 反写的公司网址+项目名 -->
-    <artifactId>spider</artifactId><!-- 一般是项目名+模块名  如 mcloud.db -->
-    <version>0.0.1-SNAPSHOT</version><!-- 大版本号.分支版本号.小版本号  snapshot 快照  alpha内测  beta公测  release稳定版  GA正式发布版本 -->
+    <groupId>com.cnherb.spider</groupId>
+    <artifactId>spider</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
 
     <properties>  
-        <!-- 文件拷贝时的编码 -->  
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>  
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>  
-        <!-- 编译时的编码 -->  
         <maven.compiler.encoding>UTF-8</maven.compiler.encoding>  
     </properties>  
 
