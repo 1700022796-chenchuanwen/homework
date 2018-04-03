@@ -2,13 +2,12 @@ package com.soecode.lyf.entity;
 
 public class Book {
 
-    private long bookId;// 图书ID
+    private long bookId;
 
-    private String name;// 图书名称
+    private String name;
 
-    private int number;// 馆藏数量
+    private int number;
 
-    // 省略构造方法，getter和setter方法，toString方法
 
     public String getname() {
     	return name;

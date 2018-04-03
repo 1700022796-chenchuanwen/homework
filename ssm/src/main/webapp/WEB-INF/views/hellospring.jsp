@@ -3,15 +3,36 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>Spring 4 MVC -HelloWorld</title>
+<title>本草中国信息检索系统</title>
 </head>
 <body>
+<div>
+	<input id="search" type="text" value="${name}"  />
+	<button  id="searchbtn" type="button">搜索</button>
+</div>
     <center>
-        <h2>Hello World</h2>
-        <h2>
-            ${message} ${name}     </h2>
          <h2>
-            ${bookname}    </h2>
+            ${name} 
+         </h2>
+         <c:choose>
+         	<c:when  ""!=$(descript) >
+	         <span>
+	           ${descript}
+	         </span>
+         		<img src="${image}" />
+         	</c:when>
+            <c:otherwise> 
+          	  	<span> 您要查找的页面不存在！</span>
+          	 </c:otherwise>
+          </c:choose>
     </center>
+    	<script>
+		var btn = document.getElementById("searchbtn");
+		var txt = document.getElementById("search");
+		
+		btn.onclick = function(){
+	    	window.location.assign("hello?name="+txt.value);
+		}
+	</script>
 </body>
 </html>

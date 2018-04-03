@@ -6,33 +6,40 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
 
 
-import com.soecode.lyf.dao.BookDao;
-import com.soecode.lyf.entity.Book;
+import com.soecode.lyf.dao.HerbDao;
+import com.soecode.lyf.entity.Herb;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Controller
 public class HelloSpringController {
 	
     @Autowired
-    private BookDao bookDao;
+    private HerbDao HerbDao;
     
     String message = "Welcome to Spring MVC!!!";
  
     @RequestMapping("/hello")
     public ModelAndView showMessage(@RequestParam(value = "name", required = false, defaultValue = "Spring") String name) {
  
-        long bookId = 1000;
-        Book book = bookDao.queryById(bookId);
+    	
+        Herb Herb = HerbDao.queryByName(name);
+        String descript=null;
+        String image =null;
+        
+    	if( Herb != null) {
+    		 descript = Herb.getdescript();
+    		 image = Herb.getimage();
+    	}
     	
     	
-    	String bookname = book.getname();
-    	//String bookname = "test";
-    	System.out.print(book);
-        ModelAndView mv = new ModelAndView("hellospring");//指定视图
-        //向视图中添加所要展示或使用的内容，将在页面中使用
+    	//String Herbname = "test";
+    //	System.out.print(Herb);
+        ModelAndView mv = new ModelAndView("hellospring");
+        
         mv.addObject("message", message);
         mv.addObject("name", name);
-        mv.addObject("bookname", bookname);
+        mv.addObject("descript", descript);
+        mv.addObject("image",image);
         return mv;
     }
 }
