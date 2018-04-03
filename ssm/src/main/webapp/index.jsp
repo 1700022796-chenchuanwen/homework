@@ -20,6 +20,11 @@
 		btn.onclick = function(){
 	    	window.location.assign("hello?name="+txt.value);
 		}
+		txt.onkeydown = function(e){
+			if(e.keyCode == 13){
+				window.location.assign("hello?name="+txt.value);
+			}
+		};
 	</script>
 </body>
 </html>

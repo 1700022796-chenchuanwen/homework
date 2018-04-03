@@ -1,4 +1,6 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <head>
@@ -15,13 +17,13 @@
             ${name} 
          </h2>
          <c:choose>
-         	<c:when  ""!=$(descript) >
-	         <span>
-	           ${descript}
-	         </span>
+         	<c:when  test="${descript!=null}">
+		         <span>
+		           ${descript}
+		         </span>
          		<img src="${image}" />
          	</c:when>
-            <c:otherwise> 
+            <c:otherwise>
           	  	<span> 您要查找的页面不存在！</span>
           	 </c:otherwise>
           </c:choose>
@@ -33,6 +35,12 @@
 		btn.onclick = function(){
 	    	window.location.assign("hello?name="+txt.value);
 		}
+		txt.onkeydown = function(e){
+
+			if(e.keyCode == 13){
+				window.location.assign("hello?name="+txt.value);
+			}
+		};
 	</script>
 </body>
 </html>
