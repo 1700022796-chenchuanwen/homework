@@ -12,15 +12,16 @@ import java.sql.*;
 
 public class  Spider {
 	static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";
-	static final String DB_URL = "jdbc:mysql://localhost/ssm";
+	static final String DB_URL = "jdbc:mysql://localhost/cnherb";
 	static final String USER="root";
 	static final String PASSWORD = "admin";
 	
 
     public static void main(String[] args){
         String[] keywordArr = {
-        		"人参","甘草"
+        		"人参","甘草","麻黄","桂枝","生姜","香薷","紫苏","荆芥","薄荷","桑叶"
         };
+        String[] result = new String[2];
         String url = "https://baike.baidu.com/item/";
         for(String keyword : keywordArr) {
         	System.out.println(keyword);
@@ -31,14 +32,21 @@ public class  Spider {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-            //Get_Url(url + key);
+            result = Get_Url(url + key);
+            result[0] = keyword;
+//            for(String e: result) {
+//            	System.out.print(e +" ");
+//            }
+            insert(result);
         }
         
-        insert();
+
+        
+
 
     }
     
-    public static void insert() {
+    public static void insert(String[] data) {
     	Connection conn = null;
     	Statement stmt = null;
     	try {
@@ -51,18 +59,28 @@ public class  Spider {
     		System.out.println("实例化Statement对象");
     		stmt = conn.createStatement();
     		String sql;
-    		sql = "SELECT book_id, name, number from book";
+    		sql = "SELECT id  from herb where name='"+data[0]+"'";
     		ResultSet rs = stmt.executeQuery(sql);
-    		
-    		//展开结果集
-    		while(rs.next()) {
-    			int id  = rs.getInt("book_id");
-    			String name = rs.getString("name");
-    			int number = rs.getInt("number");
+    		if(!rs.next()) {
+    			//插入数据
+    			sql = "INSERT INTO herb(name, descript,image) values('"+data[0]+"','"+data[1]+"','"+data[2]
+    					+"')";
     			
-    			//输出数据
-    			System.out.println(id+ " " + name + " " + number);
+    			System.out.println(sql);
+    			 stmt = conn.createStatement();
+    			 int result = stmt.executeUpdate(sql);
+    			 System.out.println(result);
+   
     		}
+    		//展开结果集
+//    		while(rs.next()) {
+//    			int id  = rs.getInt("book_id");
+//    			String name = rs.getString("name");
+//    			int number = rs.getInt("number");
+//    			
+//    			//输出数据
+//    			System.out.println(id+ " " + name + " " + number);
+//    		}
     		
     		rs.close();
     		stmt.close();
@@ -80,7 +98,8 @@ public class  Spider {
     	
     }
 
-    public static void Get_Url(String url) {
+    public static String[] Get_Url(String url) {
+    	String[]  output = new String[3];
         try {
             Document doc = Jsoup.connect(url) 
                 //.data("query", "Java")
@@ -102,22 +121,24 @@ public class  Spider {
 
 //            for (Element content : contents) {
                 Element link = content.selectFirst("div.lemma-summary");
-                System.out.println(link.text());  
+                output[1] = link.text();
+                //System.out.println(link.text());  
                 
                 Element sideContent = doc.selectFirst("div.side-content");
                 Element pic = sideContent.selectFirst("div.summary-pic").selectFirst("img[src$=.jpg]");
-                System.out.println(pic.attr("src"));
+                output[2] = pic.attr("src");
+                //System.out.println(pic.attr("src"));
 
                 Element basicInfo = doc.selectFirst("div.basic-info");
                 Elements dtNameArr = basicInfo.getElementsByTag("dt");
                 Elements dtValueArr = basicInfo.getElementsByTag("dd");
-                
+             //   output[2] = basicInfo.text();
                 //System.out.println(basicInfo.text());
                 
 	            for(int i=0;i<dtNameArr.size();i++){
 	            	String keyname = dtNameArr.get(i).text();
 	            	String valuename = dtValueArr.get(i).text();
-	                System.out.println(keyname + " " + valuename);                	
+	               // System.out.println(keyname + " " + valuename);                	
 	            }                
                 System.out.println("end");
 
@@ -128,7 +149,8 @@ public class  Spider {
             e.printStackTrace();
 
         }
-
+        	
+        return output;
     }
 
 }
