@@ -2,6 +2,8 @@
 #include "malloc.h"
 #include "stdlib.h"
 
+#include <setjmp.h>
+
 #define HUFFMAN_BITS_SIZE 256
 #define HUFFMAN_HASH_NBITS 9 //程序中查找码字长度
 #define HUFFMAN_HASH_SIZE (1UL<<HUFFMAN_HASH_NBITS)
@@ -16,6 +18,10 @@
 #else
 #define trace(fmt, args...) do { } while (0)
 #endif
+
+#define cY	0
+#define cCb	1
+#define cCr	2
 
 enum{
     COMPONENTS=3,
@@ -143,7 +149,7 @@ struct component{
 struct jdec_private{
 
     /* public variables*/
-    uint8_t *compnents[COMPONENTS];
+    uint8_t *components[COMPONENTS];
     unsigned int width, height;  /*size of  the image*/
     unsigned int flags;
 
@@ -166,7 +172,7 @@ struct jdec_private{
     /* Temp space used after the IDCT to store each components */
     uint8_t Y[64*4], Cr[64], Cb[64];
 
-    //jmp_buf jump_state;
+    jmp_buf jump_state;
     /* Internal Pointer use for colorspace conversion , do not moidfy it !!!*/
     uint8_t *plane[COMPONENTS];
 
@@ -187,3 +193,19 @@ struct jdec_private *tinyjpeg_init(void){
     return priv;
 };
 
+typedef void (*decode_MCU_fct) (struct jdec_private *priv);
+typedef void (*convert_colorspace_fct) (struct jdec_private *priv);
+static const decode_MCU_fct decode_mcu_3comp_table[4] = {
+   decode_MCU_1x1_3planes,
+   decode_MCU_1x2_3planes,
+   decode_MCU_2x1_3planes,
+   decode_MCU_2x2_3planes,
+};
+static void resync(struct jdec_private *priv);
+
+enum tinyjpeg_fmt {
+   TINYJPEG_FMT_GREY = 1,
+   TINYJPEG_FMT_BGR24,
+   TINYJPEG_FMT_RGB24,
+   TINYJPEG_FMT_YUV420P,
+};
