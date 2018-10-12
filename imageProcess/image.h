@@ -1,8 +1,9 @@
-#include "stdio.h"
-#include "malloc.h"
-#include "stdlib.h"
-
+#include <stdio.h>
+#include <malloc.h>
+#include <stdlib.h>
+#include <string.h>
 #include <setjmp.h>
+#include <errno.h>
 
 #define HUFFMAN_BITS_SIZE 256
 #define HUFFMAN_HASH_NBITS 9 //程序中查找码字长度
@@ -22,6 +23,8 @@
 #define cY	0
 #define cCb	1
 #define cCr	2
+
+
 
 enum{
     COMPONENTS=3,
@@ -158,7 +161,7 @@ struct jdec_private{
     unsigned int stream_length;
 
     const unsigned char *stream;
-    unsigned int reservior, nbits_in_reservoir;
+    unsigned int reservoir, nbits_in_reservoir;
 
     struct component component_infos[COMPONENTS];
     float Q_tables[COMPONENTS][64];
@@ -195,17 +198,56 @@ struct jdec_private *tinyjpeg_init(void){
 
 typedef void (*decode_MCU_fct) (struct jdec_private *priv);
 typedef void (*convert_colorspace_fct) (struct jdec_private *priv);
-static const decode_MCU_fct decode_mcu_3comp_table[4] = {
-   decode_MCU_1x1_3planes,
-   decode_MCU_1x2_3planes,
-   decode_MCU_2x1_3planes,
-   decode_MCU_2x2_3planes,
-};
+
 static void resync(struct jdec_private *priv);
 
-enum tinyjpeg_fmt {
-   TINYJPEG_FMT_GREY = 1,
-   TINYJPEG_FMT_BGR24,
-   TINYJPEG_FMT_RGB24,
-   TINYJPEG_FMT_YUV420P,
-};
+#define look_nbits(reservoir,nbits_in_reservoir,stream,nbits_wanted,result) do { \
+   fill_nbits(reservoir,nbits_in_reservoir,stream,(nbits_wanted)); \
+   result = ((reservoir)>>(nbits_in_reservoir-(nbits_wanted))); \
+}  while(0);
+#define fill_nbits(reservoir,nbits_in_reservoir,stream,nbits_wanted) do { \
+   while (nbits_in_reservoir<nbits_wanted) \
+    { \
+      unsigned char c; \
+      if (stream >= priv->stream_end) \
+        longjmp(priv->jump_state, -EIO); \
+      c = *stream++; \
+      reservoir <<= 8; \
+      if (c == 0xff && *stream == 0x00) \
+        stream++; \
+      reservoir |= c; \
+      nbits_in_reservoir+=8; \
+    } \
+}  while(0);
+
+#if defined(__GNUC__) && (__GNUC__ > 3) && defined(__OPTIMIZE__)
+#define __likely(x)       __builtin_expect(!!(x), 1)
+#define __unlikely(x)     __builtin_expect(!!(x), 0)
+#else
+#define __likely(x)       (x)
+#define __unlikely(x)     (x)
+#endif
+
+#define skip_nbits(reservoir,nbits_in_reservoir,stream,nbits_wanted) do { \
+   nbits_in_reservoir -= (nbits_wanted); \
+   reservoir &= ((1U<<nbits_in_reservoir)-1); \
+}  while(0);
+
+/* Signed version !!!! */
+#define get_nbits(reservoir,nbits_in_reservoir,stream,nbits_wanted,result) do { \
+   fill_nbits(reservoir,nbits_in_reservoir,stream,(nbits_wanted)); \
+   result = ((reservoir)>>(nbits_in_reservoir-(nbits_wanted))); \
+   nbits_in_reservoir -= (nbits_wanted);  \
+   reservoir &= ((1U<<nbits_in_reservoir)-1); \
+   if ((unsigned int)result < (1UL<<((nbits_wanted)-1))) \
+       result += (0xFFFFFFFFUL<<(nbits_wanted))+1; \
+}  while(0);
+/* Signed version !!!! */
+#define get_nbits(reservoir,nbits_in_reservoir,stream,nbits_wanted,result) do { \
+   fill_nbits(reservoir,nbits_in_reservoir,stream,(nbits_wanted)); \
+   result = ((reservoir)>>(nbits_in_reservoir-(nbits_wanted))); \
+   nbits_in_reservoir -= (nbits_wanted);  \
+   reservoir &= ((1U<<nbits_in_reservoir)-1); \
+   if ((unsigned int)result < (1UL<<((nbits_wanted)-1))) \
+       result += (0xFFFFFFFFUL<<(nbits_wanted))+1; \
+}  while(0);

@@ -857,6 +857,118 @@ static void YCrCB_to_Grey_2x2(struct jdec_private *priv)
   }
 }
 
+/**
+ * Get the next (valid) huffman code in the stream.
+ *
+ * To speedup the procedure, we look HUFFMAN_HASH_NBITS bits and the code is
+ * lower than HUFFMAN_HASH_NBITS we have automaticaly the length of the code
+ * and the value by using two lookup table.
+ * Else if the value is not found, just search (linear) into an array for each
+ * bits is the code is present.
+ *
+ * If the code is not present for any reason, -1 is return.
+ */
+static int get_next_huffman_code(struct jdec_private *priv, struct huffman_table *huffman_table)
+{
+  int value, hcode;
+  unsigned int extra_nbits, nbits;
+  uint16_t *slowtable;
+
+  look_nbits(priv->reservoir, priv->nbits_in_reservoir, priv->stream, HUFFMAN_HASH_NBITS, hcode);
+  value = huffman_table->lookup[hcode];
+  if (__likely(value >= 0))
+  { 
+     unsigned int code_size = huffman_table->code_size[value];
+     skip_nbits(priv->reservoir, priv->nbits_in_reservoir, priv->stream, code_size);
+     return value;
+  }
+
+  /* Decode more bits each time ... */
+  for (extra_nbits=0; extra_nbits<16-HUFFMAN_HASH_NBITS; extra_nbits++)
+   {
+     nbits = HUFFMAN_HASH_NBITS + 1 + extra_nbits;
+
+     look_nbits(priv->reservoir, priv->nbits_in_reservoir, priv->stream, nbits, hcode);
+     slowtable = huffman_table->slowtable[extra_nbits];
+     /* Search if the code is in this array */
+     while (slowtable[0]) {
+	if (slowtable[0] == hcode) {
+	   skip_nbits(priv->reservoir, priv->nbits_in_reservoir, priv->stream, nbits);
+	   return slowtable[1];
+	}
+	slowtable+=2;
+     }
+   }
+  return 0;
+}
+/**
+ *
+ * Decode a single block that contains the DCT coefficients.
+ * The table coefficients is already dezigzaged at the end of the operation.
+ *
+ */
+static void process_Huffman_data_unit(struct jdec_private *priv, int component)
+{
+  unsigned char j;
+  unsigned int huff_code;
+  unsigned char size_val, count_0;
+
+  struct component *c = &priv->component_infos[component];
+  short int DCT[64];
+
+
+  /* Initialize the DCT coef table */
+  memset(DCT, 0, sizeof(DCT));
+
+  /* DC coefficient decoding */
+  huff_code = get_next_huffman_code(priv, c->DC_table);
+  //trace("+ %x\n", huff_code);
+  if (huff_code) {
+     get_nbits(priv->reservoir, priv->nbits_in_reservoir, priv->stream, huff_code, DCT[0]);
+     DCT[0] += c->previous_DC;
+     c->previous_DC = DCT[0];
+  } else {
+     DCT[0] = c->previous_DC;
+  }
+
+  /* AC coefficient decoding */
+  j = 1;
+  while (j<64)
+   {
+     huff_code = get_next_huffman_code(priv, c->AC_table);
+     //trace("- %x\n", huff_code);
+
+     size_val = huff_code & 0xF;
+     count_0 = huff_code >> 4;
+
+     if (size_val == 0)
+      { /* RLE */
+	if (count_0 == 0)
+	  break;	/* EOB found, go out */
+	else if (count_0 == 0xF)
+	  j += 16;	/* skip 16 zeros */
+      }
+     else
+      {
+	j += count_0;	/* skip count_0 zeroes */
+	if (__unlikely(j >= 64))
+	 {
+	   snprintf(error_string, sizeof(error_string), "Bad huffman data (buffer overflow)");
+	   break;
+	 }
+	get_nbits(priv->reservoir, priv->nbits_in_reservoir, priv->stream, size_val, DCT[j]);
+	j++;
+      }
+   }
+
+  for (j = 0; j < 64; j++)
+    c->DCT[j] = DCT[zigzag[j]];
+}
+
+//#define IDCT tinyjpeg_idct_float
+//void tinyjpeg_idct_float (struct component *compptr, uint8_t *output_buf, int stride);
+#define IDCT(compptr, output_buf, stride) do{\
+}while(0);
 
 /*
  * Decode all the 3 components for 1x1 
@@ -1044,6 +1156,23 @@ static void decode_MCU_1x2_1plane(struct jdec_private *priv)
   process_Huffman_data_unit(priv, cCr);
 }
 
+
+static const decode_MCU_fct decode_mcu_3comp_table[4] = {
+   decode_MCU_1x1_3planes,
+   decode_MCU_1x2_3planes,
+   decode_MCU_2x1_3planes,
+   decode_MCU_2x2_3planes,
+};
+
+enum tinyjpeg_fmt {
+   TINYJPEG_FMT_GREY = 1,
+   TINYJPEG_FMT_BGR24,
+   TINYJPEG_FMT_RGB24,
+   TINYJPEG_FMT_YUV420P,
+};
+
+
+
 void build_huffman_table(const unsigned char* bits, const  unsigned char* vals, struct huffman_table *table){
     
 }
@@ -1068,8 +1197,10 @@ void build_default_huffman_tables(struct jdec_private *priv){
 
 
 
-void tinyjpeg_get_size(struct jdec_private* jdec, int* width, int* length){
-
+void tinyjpeg_get_size(struct jdec_private *priv, unsigned int *width, unsigned int *height)
+{
+  *width = priv->width;
+  *height = priv->height;
 }
 
 
@@ -1149,7 +1280,7 @@ static void resync(struct jdec_private *priv)
   for (i=0; i<COMPONENTS; i++)
      priv->component_infos[i].previous_DC = 0;
 
-  priv->reservior = 0;
+  priv->reservoir = 0;
   priv->nbits_in_reservoir = 0;
   if (priv->restart_interval > 0)
     priv->restarts_to_go = priv->restart_interval;
@@ -1212,7 +1343,7 @@ int tinyjpeg_decode(struct jdec_private* priv, int pixfmt){
        decode_mcu_table = decode_mcu_1comp_table;
        colorspace_array_conv = convert_colorspace_grey;
        if (priv->components[0] == NULL)
-	 priv->components[0] = (uint8_t *)malloc(priv->width * priv->height);
+           priv->components[0] = (uint8_t *)malloc(priv->width * priv->height);
        bytes_per_blocklines[0] = priv->width;
        bytes_per_mcu[0] = 8;
        break;
@@ -1290,8 +1421,22 @@ int tinyjpeg_decode(struct jdec_private* priv, int pixfmt){
   return 0;
 }
 
-void tinyjpeg_get_components(struct jdec_private* jdec,  unsigned char** components){
+int tinyjpeg_get_components(struct jdec_private *priv, unsigned char **components)
+{
+  int i;
+  for (i=0; priv->components[i] && i<COMPONENTS; i++)
+    components[i] = priv->components[i];
+  return 0;
+}
 
+int tinyjpeg_set_components(struct jdec_private *priv, unsigned char **components, unsigned int ncomponents)
+{
+  unsigned int i;
+  if (ncomponents > COMPONENTS)
+    ncomponents = COMPONENTS;
+  for (i=0; i<ncomponents; i++)
+    priv->components[i] = components[i];
+  return 0;
 }
 
 void tinyjpeg_free(struct jdec_private* jdec){
@@ -1596,9 +1741,29 @@ int tinyjpeg_parse_header(struct jdec_private *priv, const unsigned char *buf, u
     return ret;
 }
 
+static int filesize(FILE *fp)
+{
+  long pos;
+  fseek(fp, 0, SEEK_END);
+  pos = ftell(fp);
+  fseek(fp, 0, SEEK_SET);
+  return pos;
+}
 
+/**
+ * Save a buffer in grey image (pgm format)
+ */
+static void write_pgm(const char *filename, int width, int height, unsigned char **components)
+{
+  FILE *F;
+  char temp[1024];
 
-
+  snprintf(temp, 1024, "%s", filename);
+  F = fopen(temp, "wb");
+  fprintf(F, "P5\n%d %d\n255\n", width, height);
+  fwrite(components[0], width, height, F);
+  fclose(F);
+}
 
 // convert image
 
@@ -1611,7 +1776,7 @@ int convert_one_image(const char *infilename, const char *outfilename){
     unsigned char *components[3];
 
     char* error_string;
-    int  output_format;
+    int  output_format=1;
 
    //load the Jpeg to memory
    fp = fopen(infilename, "rb");
@@ -1619,15 +1784,13 @@ int convert_one_image(const char *infilename, const char *outfilename){
        exitmessage("Cannot open filename\n");
    }
 
-   fseek(fp,0,SEEK_END);
-   length_of_file = ftell(fp); //得到文件大小
+   length_of_file = filesize(fp); //得到文件大小
    buf = (unsigned char*)malloc(length_of_file +4);
    if(buf ==NULL){
        exitmessage("Not enough memory for loading file\n");
    }
 
-   fseek(fp,0,SEEK_SET);
-   fread(buf,sizeof(unsigned char), length_of_file, fp); //将文件里的jpg数据读到buf中
+   fread(buf,length_of_file,1, fp); //将文件里的jpg数据读到buf中
    fclose(fp);
 
    //解压
@@ -1656,7 +1819,9 @@ int convert_one_image(const char *infilename, const char *outfilename){
    tinyjpeg_get_components(jdec, components);
    trace("< tinyjpeg_get_components\n");
 
-
+   trace("> write pgm...");
+   write_pgm(outfilename, width, height, components);
+   trace("< write pgm");
    //------------
    tinyjpeg_free(jdec);
    free(buf);
@@ -1666,8 +1831,9 @@ int convert_one_image(const char *infilename, const char *outfilename){
 
 
 void main(){
-    char* infilename="/home/chen/sandbox/image/test.jpg";
-    char* outfilename="/home/chen/sandbox/image/test_reverse.jpg";
+    char* infilename="./image/test.jpg";
+    //char* outfilename="/home/chen/sandbox/image/test_reverse.jpg";
+    char* outfilename="./image/test_reverse.pgm";
 
     convert_one_image(infilename, outfilename);
 

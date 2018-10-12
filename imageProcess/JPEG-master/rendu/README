@@ -1,0 +1,109 @@
+/*
+ * Equipe 11 :
+ * DOUMA Nejmeddine - GOUTTEFARDE Léo - KACHER Ilyes
+ *
+ * Projet C - JPEG
+ */
+
+
+Pas de leaks ni erreurs, vérifications réalisées avec valgrind tout au long du développement.
+
+
+Décodeur :
+===============================
+
+- Permet le décodage de fichiers JPEG en TIFF (selon l'API fournie)
+- Support des JPEG gris également réalisé
+
+
+Extensions :
+===============================
+
+- Implémentation de l'opération iDCT par l'algorithme de Loeffler (accélère le décodeur et l'encodeur)
+- Implémentation de l'opération DCT par l'algorithme de Loeffler (accélère l'encodeur)
+- Encodeur : permet l'encodage / réencodage / décodage des fichiers TIFF / JPEG
+
+
+
+Fonctionnalités de l'encodeur :
+===============================
+
+- changement des tailles de MCU paramétrable (8x8 / 16x8 / 8x16 / 16x16)
+- écriture de la sortie en niveau de gris si demandé
+- qualité de compression paramétrable (0 : lossless, 25 : max)
+- réencodage    JPEG => JPEG
+- encodage      TIFF => JPEG
+- réencodage    TIFF => TIFF
+- décodage      JPEG => TIFF
+
+
+Pour plus de précisions sur l'utilisation du décodeur / de l'encodeur, lancer l'exécution avec l'option -h et consulter l'aide
+
+
+
+Tests de fonctionnalité :
+===============================
+
+Files de priorité :
+
+Le programme test_file effectue un test de la bonne fonctionnalité du module priority_queue.
+
+
+Transformations DCT / iDCT :
+
+Le programme test_dct effectue la DCT puis l'iDCT d'un block de données et s'assure de retomber sur le bloc d'origine.
+
+
+Lecture / écriture TIFF :
+
+Le programme test_tiff effectue la lecture puis la réécriture d'un fichier TIFF et assure ainsi leur bon fonctionnement.
+
+
+
+Tests automatisés
+===============================
+
+- Décodeur
+
+        Pour décoder une seule image exécuter : 
+                ./run_test.sh <jpeg file>
+
+        Par exemple dans le dossier decodeur lancer :
+                ./run_test.sh tests/shaun_the_sheep.jpeg 
+
+
+        Pour décoder toutes les images JPEG d'un répertoire exécuter :
+                ./run_all.sh <test directory>
+
+        Par exemple dans le dossier decodeur, lancer :
+                ./run_all.sh tests
+
+
+- Encodeur
+
+        Pour tester toutes les fonctionnalités de l'encodeur exécuter :
+                ./run_all_test.sh <jpeg directory> <tiff directory> <res directory>
+
+        <jpeg directory> : répertoire d'images JPEG en entrée
+        <tiff directory> : répertoire d'images TIFF en entrée
+        <res directory>  : répertoires des images de sorties (jpeg2jpeg, tiff2jpeg, tiff2tiff, jpeg2tiff)
+
+        Par exemple dans le dossier encodeur, lancer :
+                ./run_all_test.sh tests/jpeg tests/tiff tests/out
+
+
+
+
+Sources des images de test :
+===============================
+
+ecureuil.jpg
+http://dev.exiv2.org/attachments/download/511/test.jpg
+
+paysage_jeux.jpg
+http://forum.gameview.me/en/data/attachment/portal/201301/29/095010pojfpt3k638jfif1.jpg
+
+jpeg400jfif.jpg, jpeg444.jpg, jpeg422jfif.jpg, jpeg420exif.jpg
+http://www.w3.org/MarkUp/Test/xhtml-print/20050519/tests/A_2_1-BF-01.htm
+
+
