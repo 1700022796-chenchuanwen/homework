@@ -16,8 +16,12 @@
 #define TROIS             0x0003
 
 /* Endianness */
+#ifndef LITTLE_ENDIAN
 #define LITTLE_ENDIAN     0x4949
+#endif
+#ifndef BIG_ENDIAN
 #define BIG_ENDIAN        0x4D4D
+#endif
 
 /* IFD tags */
 #define IMAGE_WIDTH       0x0100

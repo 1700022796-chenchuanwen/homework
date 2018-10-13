@@ -206,6 +206,8 @@ bool parse_args(int argc, char **argv, struct options *options)
 
         /* Disable default warnings */
         opterr = 0;
+     
+        output = "test1.jpg";
 
         /* Parse all arguments */
         while ( (opt = getopt(argc, argv, "o:c:m:ghd")) != -1) {
@@ -280,8 +282,10 @@ bool parse_args(int argc, char **argv, struct options *options)
 
         /* If no input / output file, error */
         if (input == NULL || output == NULL)
+        {
+                trace("empty  input or output\n");
                 error = true;
-
+        }
 
         /* Show the help on error */
         if (error)

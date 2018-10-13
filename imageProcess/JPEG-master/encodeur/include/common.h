@@ -70,3 +70,13 @@
 
 
 #endif
+
+#ifdef DEBUG
+#define trace(fmt, args...)do{ \
+   fprintf(stderr, fmt, ## args);\
+   fflush(stderr);\
+}while(0);
+#else 
+#define  trace(fmt, args...)do{}while(0);
+#endif
+
