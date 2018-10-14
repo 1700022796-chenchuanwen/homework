@@ -20,6 +20,9 @@ static void read_tiff(struct jpeg_data *ojpeg, bool *error);
 /* Extract and decode raw JPEG data */
 static void scan_jpeg(struct bitstream *stream, struct jpeg_data *jpeg, bool *error);
 
+/* histogram balance*/
+static void histogram_balance(struct jpeg_data *jpeg, bool *error);
+
 /*
  * Generic quantification table
  * Source : http://www-ljk.imag.fr/membres/Valerie.Perrier/SiteWeb/node10.html
@@ -127,6 +130,8 @@ static void read_jpeg(struct jpeg_data *ojpeg, bool *error)
 
                         ojpeg->raw_data = jpeg.raw_data;
 
+                        /* Histogram balance*/
+                        histogram_balance(ojpeg, error);
 
                         free_bitstream(stream);
                         free_jpeg_data(&jpeg);
@@ -593,6 +598,7 @@ static void scan_jpeg(struct bitstream *stream, struct jpeg_data *jpeg, bool *er
                 else
                         *error = true;
         }
+       
 }
 
 
@@ -649,3 +655,87 @@ static const uint8_t generic_qt[64] =
 //         0x1e, 0x1e, 0x1e, 0x1e, 0x1e, 0x1e, 0x1e, 0x1e
 // };
 
+static void histogram_balance(struct jpeg_data *jpeg, bool *error){
+        if (error == NULL || *error || jpeg == NULL)
+                return;
+
+        uint32_t *raw = jpeg->raw_data;
+        uint32_t scale =  jpeg->height * jpeg->width;
+        uint32_t i =0;
+        uint32_t  R[scale], G[scale], B[scale];
+          
+        //get R,G,B component
+        while(i<scale){
+          R[i] = raw[i] >>16;
+          G[i] = (raw[i] <<16)>>24;
+          B[i] = (raw[i]<<24)>>24;
+          i++;
+        }
+
+       //count R
+       i=0;
+       uint32_t RGB_freq[3][255] ={0};
+       uint32_t RGB_count[3]={0};
+       while(i<scale){
+          RGB_freq[0][R[i]]++;  //red
+          RGB_freq[1][G[i]]++;  //green
+          RGB_freq[2][B[i]]++;  //blue
+         i++;
+       }
+       i=0;
+       trace(">rgb count:\n");
+       while(i<255){
+         RGB_count[0] += RGB_freq[0][i]; //red
+         RGB_count[1] += RGB_freq[1][i]; //red
+         RGB_count[2] += RGB_freq[2][i]; //red
+         //trace("> %d:RGB_freq:%d ", i,RGB_freq[0][i]);
+         i++;
+       }
+ 
+       //count probability
+       float RGB_prob[3][255]={0};
+       i=0;
+       while(i<255){
+         RGB_prob[0][i]= RGB_freq[0][i]*1.0/RGB_count[0];  //red
+         RGB_prob[1][i]= RGB_freq[1][i]*1.0/RGB_count[1];  //green
+         RGB_prob[2][i]= RGB_freq[2][i]*1.0/RGB_count[2];  //blue
+       //  trace(">RGB_prob:%f ", RGB_prob[0][i]);
+         i++;
+       }       
+       //cdf 
+       float RGB_cdf[3][255]={0};
+       i=1;
+       RGB_cdf[0][0] = RGB_prob[0][0] ;
+       RGB_cdf[1][0] = RGB_prob[1][0] ;
+       RGB_cdf[2][0] = RGB_prob[2][0] ;
+       while(i<255){
+            RGB_cdf[0][i] = RGB_cdf[0][i-1]+RGB_prob[0][i];
+            RGB_cdf[1][i] = RGB_cdf[1][i-1]+RGB_prob[1][i];
+            RGB_cdf[2][i] = RGB_cdf[2][i-1]+RGB_prob[2][i];
+           // trace(">RGB_cdf:%d ", RGB_cdf[0][i]);
+         i++;
+       } 
+       i=0;
+       uint32_t RGB_balance[0][255] ={0};
+       while(i<255){
+          RGB_balance[0][i]= RGB_cdf[0][i]*255; 
+          RGB_balance[1][i]= RGB_cdf[1][i]*255; 
+          RGB_balance[2][i]= RGB_cdf[2][i]*255; 
+          //trace(">RGB_balance:%d ", RGB_balance[1][i]);
+         i++;
+       };
+
+       trace(">\nrewrite:\n");
+       //rewrite raw data
+       i=0;
+       uint32_t pixel=0;
+       while(i<scale){
+          pixel = raw[i];
+          raw[i] =  RGB_balance[0][pixel>>16] <<16; //red
+          raw[i] |=  (RGB_balance[1][(pixel<<16)>>24]) <<8; //green
+          raw[i] |=  RGB_balance[2][(pixel<<24)>>24]; //blue
+        // raw[i] = (raw[i]>>16)<<16;
+         i++;
+       }
+       
+}
