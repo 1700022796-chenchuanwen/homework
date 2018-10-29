@@ -133,6 +133,11 @@ void ARGB_to_Y(uint32_t *mcu_RGB, uint8_t  *mcu_Y,
 
                 /* Compute the grayscale value */
                 mcu_Y[i] = (R + G + B) / 3;
+
+                
+                // if(TRIPOW){
+                   mcu_Y[i]   =  pow(mcu_Y[i]/255.0, 0.3)*255;
+                // }
         }
 }
 

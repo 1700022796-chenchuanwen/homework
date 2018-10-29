@@ -23,6 +23,8 @@ static void scan_jpeg(struct bitstream *stream, struct jpeg_data *jpeg, bool *er
 /* histogram balance*/
 static void histogram_balance(struct jpeg_data *jpeg, bool *error);
 
+void tripow(struct jpeg_data *jpeg, bool *error);
+
 /*
  * Generic quantification table
  * Source : http://www-ljk.imag.fr/membres/Valerie.Perrier/SiteWeb/node10.html
@@ -130,9 +132,11 @@ static void read_jpeg(struct jpeg_data *ojpeg, bool *error)
 
                         ojpeg->raw_data = jpeg.raw_data;
 
+                        #ifdef BALANCE
                         /* Histogram balance*/
                         histogram_balance(ojpeg, error);
-
+                        #endif       
+    
                         free_bitstream(stream);
                         free_jpeg_data(&jpeg);
 
@@ -737,5 +741,40 @@ static void histogram_balance(struct jpeg_data *jpeg, bool *error){
         // raw[i] = (raw[i]>>16)<<16;
          i++;
        }
-       
+}
+
+// three pow of jpg  -- by chuanwen 2018-10-20
+void tripow(struct jpeg_data *jpeg, bool *error){
+    if( error==NULL || *error || jpeg==NULL){ 
+        return;
+    }
+
+    uint32_t *raw = jpeg->raw_data;
+    uint32_t scale = jpeg->width* jpeg->height;
+    uint32_t R, G, B;
+    uint8_t Y,Cb,Cr;
+
+    uint32_t i=0;
+    while(i<scale){
+        R =  RED(raw[i]);
+        G = (raw[i] <<16)>>24;
+        B = (raw[i]<<24)>>24;
+
+        Y  = 0.299 * R + 0.587 * G + 0.114 * B;
+        Cb = -0.1687 * R - 0.3313 * G + 0.5 * B + 128;
+        Cr = 0.5 * R - 0.4187 * G - 0.0813 * B + 128;
+
+        Y = pow(Y,1.2);
+
+        R = Y - 0.0009267 * (Cb - 128) + 1.4016868 * (Cr - 128);
+        G = Y - 0.3436954 * (Cb - 128) - 0.7141690 * (Cr - 128);
+        B = Y + 1.7721604 * (Cb - 128) + 0.0009902 * (Cr - 128);
+
+
+        raw[i] = TRUNCATE(R)<<16 | TRUNCATE(G)<<8 | TRUNCATE(B);
+        i++;
+    }
+
+    
+
 }

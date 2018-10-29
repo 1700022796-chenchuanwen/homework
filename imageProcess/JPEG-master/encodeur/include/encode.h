@@ -62,5 +62,7 @@ extern void detect_mcu(struct jpeg_data *jpeg, bool *error);
 /* Computes MCU informations */
 extern void compute_mcu(struct jpeg_data *jpeg, bool *error);
 
+/* zoom image */
+extern void zoom_image(struct jpeg_data *jpeg, bool *error);
 
 #endif

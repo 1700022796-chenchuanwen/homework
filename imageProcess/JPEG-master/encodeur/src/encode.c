@@ -13,7 +13,6 @@
 /* Computes how many MCUs are required to cover a given dimension */
 static inline uint16_t mcu_per_dim(uint8_t mcu, uint16_t dim);
 
-
 /* Compresses raw mcu data, and computes Huffman tables */
 void compute_jpeg(struct jpeg_data *jpeg, bool *error)
 {
@@ -530,4 +529,66 @@ void free_jpeg_data(struct jpeg_data *jpeg)
                         free_huffman_table(jpeg->htables[i][j]);
 }
 
+/*zoon image  add by chuanwen*/
+void zoom_image(struct jpeg_data *jpeg, bool *error){
+    if(error ==NULL || *error || jpeg ==NULL){
+            return ;
+    }  
+    uint32_t oheight = jpeg->height,owidth = jpeg->width;
+    uint32_t  omcu_nb = jpeg->mcu.nb;
+    float rate = 0.5;
+    uint32_t nheight = oheight, nwidth = owidth*rate;
+    uint32_t nmcu_nb = omcu_nb*rate;
+      
+    uint32_t scale = jpeg->width* jpeg->height;
+    uint32_t* oraw_data = jpeg->raw_data;
+
+    uint8_t mcu_h_dim = jpeg->mcu.h_dim;
+    uint8_t mcu_v_dim = jpeg->mcu.v_dim;
+
+    jpeg->raw_data = calloc(scale* rate,  sizeof(uint32_t));
+
+    //narrow -mcus 
+    uint8_t mcu_v = jpeg->mcu.nb_v;
+    uint8_t mcu_h = jpeg->mcu.nb_h;
+//    jpeg->mcu.nb= 45;
+   uint8_t mcu_size = 255;
+    trace(">> mcu_h:%d, muc_v:%d, mcu_size:%d\n", mcu_h, mcu_v, jpeg->mcu.size);
+    trace(">> width:%d, height:%d , mcu_h_dim:%d, mcu_v_dim:%d\n", nwidth, nheight,jpeg->mcu.h ,jpeg->mcu.v);
+
+    /* Initialize output information */
+  //  jpeg->mcu.h = mcu_h;
+  //  jpeg->mcu.v = mcu_v;
+    jpeg->width = nwidth;
+    jpeg->height = nheight;
+
+    /*compute mcu*/
+    compute_mcu(jpeg, error);
+
+  //  for(uint32_t i=0;i<scale*rate;i++){
+  //      jpeg->raw_data[i] = oraw_data[i];
+  //  }
+
+
+    for(uint32_t i=0;i<mcu_v;i++){
+        for(uint32_t j=0;j<mcu_h;j++){
+            uint32_t mcu_count = (i*mcu_v + j)*mcu_size;
+           // trace("%d ", mcu_count);
+            for(uint8_t k=0;k<mcu_size && ( mcu_count+ k) <scale*rate;k++){
+               jpeg->raw_data[mcu_count + k] = oraw_data[2*mcu_count + k];
+            }
+        }
+    }
+
+    trace(">> zooming....\n");
+/*
+   //magnify  
+    uint32_t size = scale;
+    for(uint32_t i=0,j=0;j<size;j++,i+=2){
+        jpeg->raw_data[i] = oraw_data[j];
+        jpeg->raw_data[i+1] = oraw_data[j];
+    }
+*/
+    SAFE_FREE(oraw_data);
+}
 

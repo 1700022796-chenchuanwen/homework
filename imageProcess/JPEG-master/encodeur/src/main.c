@@ -37,10 +37,16 @@ int main(int argc, char **argv)
 
                         /* Read input image */
                         read_image(&jpeg, &error);
+                        
 
                         /* Enable specific options */
                         process_options(&options, &jpeg, &error);
 
+
+                        #ifdef ZOOM
+                        /* Zoom input image  add by chuanwen 181015*/ 
+                        zoom_image(&jpeg, &error);
+                        #endif
 
                         /* Compute Huffman tables */
                         compute_jpeg(&jpeg, &error);

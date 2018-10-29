@@ -206,11 +206,23 @@ bool parse_args(int argc, char **argv, struct options *options)
 
         /* Disable default warnings */
         opterr = 0;
-     
+   /* 
+        #ifdef WIN32 
         output = "test1.jpg";
+        int tmp=-1;
+        char** param= argv; 
+        while(++tmp<argc){
+            if(tmp==2){ 
+              output=*param;
+            }
+            param++;
+        }
+        
+        #endif
+*/
 
         /* Parse all arguments */
-        while ( (opt = getopt(argc, argv, "o:c:m:ghd")) != -1) {
+        while ( (opt = getopt(argc, argv, "o:c:m:ghd:D")) != -1) {
 
                 switch (opt) {
                         case 'o':
@@ -235,6 +247,10 @@ bool parse_args(int argc, char **argv, struct options *options)
 
                         case 'd':
                                 encode = false;
+                        case 'D':
+                           //     if(strcmp(optarg,"TRIPOW") == true){
+                               #define TRIPOW true 
+                             //   }
                                 break;
                 }
         }
@@ -441,7 +457,7 @@ void process_options(struct options *options, struct jpeg_data *jpeg, bool *erro
                 /* Compute new MCU informations */
                 jpeg->mcu.h = options->mcu_h;
                 jpeg->mcu.v = options->mcu_v;
-
+        
                 compute_mcu(jpeg, error);
 
 
