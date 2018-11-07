@@ -20,6 +20,29 @@ struct bitstream {
 };
 
 
+char * utf8ToGbk(char *utf8String)
+{
+	wchar_t *unicodeStr = NULL;
+
+	int nRetLen = 0;
+	//求需求的宽字符数大小
+	nRetLen = MultiByteToWideChar(CP_UTF8, 0, utf8String, -1, NULL, 0);
+
+	unicodeStr = (wchar_t *)malloc(nRetLen * sizeof(wchar_t));
+	//将utf-8编码转换成unicode编码
+	MultiByteToWideChar(CP_UTF8, 0, utf8String, -1, unicodeStr, nRetLen);
+
+	nRetLen = WideCharToMultiByte(CP_ACP, 0, unicodeStr, -1, NULL, 0, NULL, 0);
+
+	char * gbkString  = (char *)malloc(nRetLen * sizeof(wchar_t));
+
+	//求转换所需字节数
+
+	nRetLen = WideCharToMultiByte(CP_ACP, 0, unicodeStr, -1, gbkString, nRetLen, NULL, 0);
+	free(unicodeStr);
+	return gbkString;
+}
+
 /*
  * Opens the filename file as bitstream
  * with the right mode (read / write)
@@ -41,8 +64,8 @@ struct bitstream *create_bitstream(const char *filename, enum stream_mode mode)
                         open_mode = "r+";
 
                 /* Open the filename file in open_mode (read, write or both) */
-                FILE *file = fopen(filename, open_mode);
 
+                FILE *file = fopen(utf8ToGbk(filename), open_mode);
                 /* Create and initialize the stream */
                 if (file != NULL) {
                         stream = malloc(sizeof(struct bitstream));
@@ -55,6 +78,8 @@ struct bitstream *create_bitstream(const char *filename, enum stream_mode mode)
                         }
                         else
                                 fclose(file);
+                }else{
+                	trace("<< open file  failed  %s", filename);
                 }
         }
 
