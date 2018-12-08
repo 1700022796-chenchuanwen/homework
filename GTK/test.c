@@ -1,34 +1,4 @@
-#include <gtk/gtk.h>
-#include <stdio.h>
-#include "common.h"
-#include "bitstream.h"
-#include "encode.h"
-#include "decode.h"
-#include "library.h"
-
-
-//指定显示分辨率
-#define dest_width 320
-#define dest_height 241
-
-
-GtkWidget *window;
-GtkWidget *dialog;
-GtkWidget *vbox;   //布局方式
-
-int g_argc=0;
-char **g_argv;
-struct options options;
-
-GtkWidget *frame, *frame2;
-GtkWidget *fixed, *fixed2;
-GtkWidget *img,*img2, *image, *image2;
-
-GdkPixbuf *src_pixbuf, *src_pixbuf2;
-GdkPixbuf *dest_pixbuf, *dest_pixbuf2;
-
-static char*  g_filename;
-
+#include "test.h"
 //关闭窗口
 void sig_fun(GtkWidget *win)
 {
@@ -209,6 +179,9 @@ void encodeImage(GtkWidget * widget, int task){
 
                      trace(">> process_options...\n");
                      /* Enable specific options */
+                     if(g_task ==FFT){
+                    	 options.gray=1;
+                     }
                      process_options(&options, &jpeg, &error);
 
 
@@ -328,6 +301,18 @@ void powImage(GtkWidget * widget, gpointer *task){
 	show_image2(window,g_output);
 }
 
+void fftImage(GtkWidget * widget, gpointer *task){
+	trace("FFT  image...\n");
+	encodeImage(widget, FFT);
+	show_image2(window,g_output);
+}
+
+void laplaceImage(GtkWidget * widget, gpointer *task){
+	trace("Laplace  image...\n");
+	encodeImage(widget, LAPLACE);
+	show_image2(window,g_output);
+}
+
 int main(int argc, char *argv[])
 {
 	g_argc = argc;
@@ -342,7 +327,7 @@ int main(int argc, char *argv[])
 	GtkWidget *file;      //容器
 	GtkWidget *quit;      //退出菜单条
 	GtkWidget *open;
-	GtkWidget *menu_reverse, *menu_balance, *menu_zoom,*menu_pow;
+	GtkWidget *menu_reverse, *menu_balance, *menu_zoom,*menu_pow,*menu_fft,*menu_laplace;
 
 
 	//初始化
@@ -367,6 +352,8 @@ int main(int argc, char *argv[])
 	menu_balance = gtk_menu_item_new_with_label("直方图均衡化");
 	menu_zoom = gtk_menu_item_new_with_label("缩放");
 	menu_pow = gtk_menu_item_new_with_label("幂运算");
+	menu_fft = gtk_menu_item_new_with_label("快速傅里叶变换");
+	menu_laplace = gtk_menu_item_new_with_label("拉普拉斯算子");
 
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(file),filemenu);
 	gtk_menu_shell_append(GTK_MENU_SHELL(filemenu),open);
@@ -376,6 +363,8 @@ int main(int argc, char *argv[])
 	gtk_menu_shell_append(GTK_MENU_SHELL(menubar),menu_balance);
 	gtk_menu_shell_append(GTK_MENU_SHELL(menubar),menu_zoom);
 	gtk_menu_shell_append(GTK_MENU_SHELL(menubar),menu_pow);
+	gtk_menu_shell_append(GTK_MENU_SHELL(menubar),menu_fft);
+	gtk_menu_shell_append(GTK_MENU_SHELL(menubar),menu_laplace);
 
 	gtk_box_pack_start(GTK_BOX(vbox),menubar,FALSE,FALSE,3);
 
@@ -385,6 +374,8 @@ int main(int argc, char *argv[])
 	g_signal_connect(G_OBJECT(menu_balance),"button_press_event",G_CALLBACK(balanceImage),NULL);
 	g_signal_connect(G_OBJECT(menu_zoom),"button_press_event",G_CALLBACK(zoomImage),NULL);
 	g_signal_connect(G_OBJECT(menu_pow),"button_press_event",G_CALLBACK(powImage),NULL);
+	g_signal_connect(G_OBJECT(menu_fft),"button_press_event",G_CALLBACK(fftImage),NULL);
+	g_signal_connect(G_OBJECT(menu_laplace),"button_press_event",G_CALLBACK(laplaceImage),NULL);
 
 	g_signal_connect(G_OBJECT(open),"activate",G_CALLBACK(openfile), window);
 	//菜单----<<

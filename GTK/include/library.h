@@ -100,4 +100,6 @@ typedef enum{
 	BALANCE = 2,
 	ZOOM = 3,
 	POW = 4,
+	FFT =5,
+	LAPLACE =6,
 }TASK_TYPE_CUSTOM;
