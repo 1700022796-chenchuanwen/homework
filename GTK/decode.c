@@ -146,6 +146,10 @@ static void read_jpeg(struct jpeg_data *ojpeg, bool *error)
                         if(g_task == FFT){
                         	fft(ojpeg, error);
                         }
+
+                        if(g_task ==LAPLACE){
+                        	laplace(ojpeg,error);
+                        }
     
                         free_bitstream(stream);
                         free_jpeg_data(&jpeg);
@@ -785,46 +789,81 @@ static void fft(struct jpeg_data *jpeg, bool *error){
 }
 
 //拉普拉斯算子
-static void fft(struct jpeg_data *jpeg, bool *error){
+static void laplace(struct jpeg_data *jpeg, bool *error){
     if (error == NULL || *error || jpeg == NULL)
             return;
-    uint32_t *raw = jpeg->raw_data;
-    uint32_t scale =  jpeg->height * jpeg->width;
 
-    int i,left, right, top,bottom;
-    int width = jpeg->width, height = jpeg->height;
+    uint32_t *raw = jpeg->raw_data; //从jpeg中读取的像素数据，按mcu排列
 
-    //填满空白
+    uint32_t nb_h = jpeg->mcu.nb_h; //mcu水平总数
+    uint32_t nb_v = jpeg->mcu.nb_v; //mcu垂直总数
 
-    for(i=jpeg->width;i<scale-width;i++){
-    	left=right=top=bottom=-1;
-    	//上下边缘检测
-    	if(i/width == 0){
-    		top=0;
-    	}else if( i/width== height){
-    		bottom =0;
+    uint8_t mcu_h = jpeg->mcu.h; //单位mcu水平像元
+    uint8_t mcu_v = jpeg->mcu.v; //单位mcu垂直像元
+    uint32_t mcu_size = mcu_h*mcu_v;   //单个mcu像元数
+
+    uint32_t *mcu_blocks = NULL;  //mcu块
+
+    int width = jpeg->width, height = jpeg->height;  //jpeg图像的宽和长
+
+    //转化成矩阵
+    int32_t matrix[height][width];
+    int32_t matrix_laplace[height][width];
+
+
+    for(int i=0;i<nb_v;i++){
+    	for(int j=0;j<nb_h;j++){
+			 mcu_blocks = &raw[(i*nb_h+j)*mcu_size];  //获取一个mcu
+			 for(int v=0;v<mcu_v;v++){ //mcu的高
+				 for(int h=0;h<mcu_h && i*mcu_v+v <height && j*mcu_h+h<width;h++){ //mcu的宽
+					 matrix[i*mcu_v+v][j*mcu_h+h] = mcu_blocks[v*mcu_h+ h];
+				 }
+			 }
     	}
-
-    	//两侧边缘检测
-    	if(i%width == 0){
-    		left=0;
-    	}else if( (i+1)%width==0){
-    		right =0;
-    	}
-
-
-    	if(top==0 && left==0){    //左顶点
-    		raw[i]=  raw[(i/width)*width+i%width] + raw[i+1] - 4*raw[i];
-    	}else if(top==0 && right==0){ //右顶点
-    		raw[i]= raw[(i/width)*width+i%width]  + raw[i-1] - 4*raw[i];
-    	}else if(top==0){   //上边
-    		raw[i]= raw[(i/width)*width+i%width]  + raw[i-1] + raw[i+1] - 4*raw[i];
-    	}else if(bottom==0 && left==0){  //左下顶点
-
-    	}
-
 
     }
+    trace("height=%d, width=%d\n", height, width);  //debug
+     //拉普拉斯转换
+    for(int j=1;j<height-1;j++){
+    	for(int k=1;k<width-1;k++){
+			matrix_laplace[j][k] = (BLUE(matrix[j][k-1])
+					+BLUE(matrix[j][k+1])
+					+BLUE(matrix[j-1][k])
+					+BLUE(matrix[j+1][k])
+					- 4*BLUE(matrix[j][k]));
+
+//			if(matrix_laplace[j][k]<0){
+//				matrix_laplace[j][k] =0;
+//			}
+//			if(matrix_laplace[j][k]>255){
+//				matrix_laplace[j][k] =255;
+//			}
+
+			matrix_laplace[j][k] = matrix[j][k] - matrix_laplace[j][k];
+
+			if(matrix_laplace[j][k]<0){
+				matrix_laplace[j][k] =0;
+			}
+//			if(matrix_laplace[j][k]>255){
+//				matrix_laplace[j][k] =255;
+//			}
+    	}
+    }
+
+    //写回原图
+
+    for(int i=0;i<nb_v;i++){
+    	for(int j=0;j<nb_h;j++){
+			 mcu_blocks = &raw[(i*nb_h+j)*mcu_size];  //获取一个mcu
+			 for(int v=0;v<mcu_v;v++){ //mcu的高
+				 for(int h=0;h<mcu_h&& i*mcu_v+v <height && j*mcu_h+h<width;h++){ //mcu的宽
+					  mcu_blocks[v*mcu_h+ h]= matrix_laplace[i*mcu_v+v][j*mcu_h+h];
+				 }
+			 }
+    	}
+
+    }
+
 }
 
 static void histogram_balance(struct jpeg_data *jpeg, bool *error){
@@ -888,7 +927,7 @@ static void histogram_balance(struct jpeg_data *jpeg, bool *error){
          i++;
        } 
        i=0;
-       uint32_t RGB_balance[0][255] ={0};
+       uint32_t RGB_balance[0][255];
        while(i<255){
           RGB_balance[0][i]= RGB_cdf[0][i]*255; 
           RGB_balance[1][i]= RGB_cdf[1][i]*255; 

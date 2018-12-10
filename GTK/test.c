@@ -19,7 +19,7 @@ void show_image(GtkWidget* win, char* filename){
      }
 
 
-	trace(">>read image...\n");
+	trace(">>read image...\n %s", g_filename);
   //	char* filename ="G:/work/homework/imageProcess/image/test.jpg";
 	img =gtk_image_new_from_file(g_filename);
 	gtk_widget_set_size_request(img,50,50);
@@ -179,7 +179,7 @@ void encodeImage(GtkWidget * widget, int task){
 
                      trace(">> process_options...\n");
                      /* Enable specific options */
-                     if(g_task ==FFT){
+                     if(g_task ==FFT || g_task==LAPLACE){
                     	 options.gray=1;
                      }
                      process_options(&options, &jpeg, &error);
@@ -393,11 +393,14 @@ int main(int argc, char *argv[])
 	gtk_box_pack_start(GTK_BOX(vbox),frame2,TRUE,TRUE,5);
 
 
+	g_filename = "月球.JPG";
+	show_image(window, g_filename);
+
 	gtk_widget_show_all(window);
 
-
-
 	gtk_main();
+
+
 	return 0;
 }
 
