@@ -69,7 +69,7 @@ void show_image2(GtkWidget* win, gpointer filename){
 	gtk_widget_set_size_request(img2,50,50);
 
 	 //读取图片参数
-	trace(">> read file...:\n");
+	trace(">> read file...:%s\n", filename);
 	src_pixbuf2 = gdk_pixbuf_new_from_file(filename, NULL);
 
 	//将src_pixbuf设置成屏幕大小
@@ -89,8 +89,6 @@ void show_image2(GtkWidget* win, gpointer filename){
 
 	trace(">> write image2...:\n");
 	gtk_widget_show_all(window);
-
-	trace(">> write image2...:\n");
 	gtk_widget_show_now(window);
 }
 
@@ -129,11 +127,16 @@ void openfile(GtkWidget * widget, gpointer *win){
 
 void encodeImage(GtkWidget * widget, int task){
 	g_task = task;
+	g_output = g_argv[3] = "task10.jpg";
+
+	if(task == RESUME){
+//		g_argv[1] = "task10.jpg";
+		g_output = g_argv[3] = "task11.jpg";
+	}
 
     trace(">>encoding Image filename:%s\n", g_argv[1]);
 
 	g_argv[2] ="-o";
-	g_output = g_argv[3] = "task10.jpg";
 	g_argc=4;
 
 	bool error = false;
@@ -146,13 +149,14 @@ void encodeImage(GtkWidget * widget, int task){
 //	}
 
 
+
     trace(">>parsing args...\n");
 	/* Parse arguments and exit on failure */
 	if (parse_args(g_argc, g_argv, &options)){
 			trace("parse args failed:%d",EXIT_FAILURE);
 			return ;
 	}
-    trace("<< parsing args...\n");
+
 
 
 	int ret = EXIT_SUCCESS;
@@ -179,7 +183,7 @@ void encodeImage(GtkWidget * widget, int task){
 
                      trace(">> process_options...\n");
                      /* Enable specific options */
-                     if(g_task ==FFT || g_task==LAPLACE){
+                     if(g_task ==FFT || g_task==LAPLACE|| g_task==DECAY || g_task==RESUME){
                     	 options.gray=1;
                      }
                      process_options(&options, &jpeg, &error);
@@ -313,6 +317,18 @@ void laplaceImage(GtkWidget * widget, gpointer *task){
 	show_image2(window,g_output);
 }
 
+void decayImage(GtkWidget * widget, gpointer *task){
+	trace("decay  image...\n");
+	encodeImage(widget, DECAY);
+	show_image2(window,g_output);
+}
+
+void resumeImage(GtkWidget * widget, gpointer *task){
+	trace("resume  image...\n");
+	encodeImage(widget, RESUME);
+	show_image2(window,g_output);
+}
+
 int main(int argc, char *argv[])
 {
 	g_argc = argc;
@@ -323,11 +339,12 @@ int main(int argc, char *argv[])
 //	show_pic(argv[1]);
 
 	GtkWidget *menubar;   //菜单栏
-	GtkWidget *filemenu;  //菜单
+	GtkWidget *filemenu, *filemenu2;  //菜单
 	GtkWidget *file;      //容器
 	GtkWidget *quit;      //退出菜单条
 	GtkWidget *open;
-	GtkWidget *menu_reverse, *menu_balance, *menu_zoom,*menu_pow,*menu_fft,*menu_laplace;
+	GtkWidget *menu_reverse, *menu_balance, *menu_zoom,*menu_pow,*menu_fft,
+	*menu_laplace,*menu_restore, *decay, *resume;
 
 
 	//初始化
@@ -344,6 +361,7 @@ int main(int argc, char *argv[])
 	//菜单---->>
 	menubar = gtk_menu_bar_new();
 	filemenu = gtk_menu_new();
+	filemenu2 = gtk_menu_new();
 
 	file = gtk_menu_item_new_with_label("文件");
 	open= gtk_menu_item_new_with_label("打开");
@@ -354,6 +372,9 @@ int main(int argc, char *argv[])
 	menu_pow = gtk_menu_item_new_with_label("幂运算");
 	menu_fft = gtk_menu_item_new_with_label("快速傅里叶变换");
 	menu_laplace = gtk_menu_item_new_with_label("拉普拉斯算子");
+	menu_restore = gtk_menu_item_new_with_label("图像还原");
+	decay = gtk_menu_item_new_with_label("退化");
+	resume = gtk_menu_item_new_with_label("还原");
 
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(file),filemenu);
 	gtk_menu_shell_append(GTK_MENU_SHELL(filemenu),open);
@@ -366,6 +387,11 @@ int main(int argc, char *argv[])
 	gtk_menu_shell_append(GTK_MENU_SHELL(menubar),menu_fft);
 	gtk_menu_shell_append(GTK_MENU_SHELL(menubar),menu_laplace);
 
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM(menu_restore),filemenu2);
+	gtk_menu_shell_append(GTK_MENU_SHELL(filemenu2),decay);
+	gtk_menu_shell_append(GTK_MENU_SHELL(filemenu2),resume);
+	gtk_menu_shell_append(GTK_MENU_SHELL(menubar),menu_restore);
+
 	gtk_box_pack_start(GTK_BOX(vbox),menubar,FALSE,FALSE,3);
 
 	g_signal_connect_swapped(G_OBJECT(window),"destroy",G_CALLBACK(gtk_main_quit),NULL);
@@ -376,6 +402,10 @@ int main(int argc, char *argv[])
 	g_signal_connect(G_OBJECT(menu_pow),"button_press_event",G_CALLBACK(powImage),NULL);
 	g_signal_connect(G_OBJECT(menu_fft),"button_press_event",G_CALLBACK(fftImage),NULL);
 	g_signal_connect(G_OBJECT(menu_laplace),"button_press_event",G_CALLBACK(laplaceImage),NULL);
+	g_signal_connect(G_OBJECT(decay),"button_press_event",G_CALLBACK(decayImage),NULL);
+	g_signal_connect(G_OBJECT(resume),"button_press_event",G_CALLBACK(resumeImage),NULL);
+
+
 
 	g_signal_connect(G_OBJECT(open),"activate",G_CALLBACK(openfile), window);
 	//菜单----<<
@@ -389,12 +419,25 @@ int main(int argc, char *argv[])
 	gtk_frame_set_label(GTK_FRAME(frame2), "变换后...");
 
 	//框架加入盒子中
-	gtk_box_pack_start(GTK_BOX(vbox),frame,TRUE,TRUE,5);
-	gtk_box_pack_start(GTK_BOX(vbox),frame2,TRUE,TRUE,5);
+//	gtk_box_pack_start(GTK_BOX(vbox),frame,TRUE,TRUE,5);
+//	gtk_box_pack_start(GTK_BOX(vbox),frame2,TRUE,TRUE,5);
 
+//------------------------------------------------------------------
+	GtkWidget *paned1, *button1, *button2, *button3;
+	GtkWidget *paned2, *paned3;
 
-	g_filename = "月球.JPG";
-	show_image(window, g_filename);
+	paned2 = gtk_hpaned_new();
+	paned3 = gtk_hpaned_new();
+
+	gtk_paned_add1(GTK_PANED(paned2),frame);
+	gtk_paned_add2(GTK_PANED(paned2),paned3);
+	gtk_paned_add1(GTK_PANED(paned3),frame2);
+
+	gtk_box_pack_start(GTK_BOX(vbox),paned2,TRUE,TRUE,5);
+
+//	g_filename = "tests/月球.JPG";
+//		g_filename = "task1.JPG";
+//	show_image(window, g_filename);
 
 	gtk_widget_show_all(window);
 

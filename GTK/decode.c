@@ -29,6 +29,10 @@ static void fft(struct jpeg_data *jpeg, bool *error);
 
 static void laplace(struct jpeg_data *jpeg, bool *error);
 
+static void decay(struct jpeg_data *jpeg, bool *error);
+
+static void resume(struct jpeg_data *jpeg, bool *error);
+
 void tripow(struct jpeg_data *jpeg, bool *error);
 
 /*
@@ -150,6 +154,15 @@ static void read_jpeg(struct jpeg_data *ojpeg, bool *error)
                         if(g_task ==LAPLACE){
                         	laplace(ojpeg,error);
                         }
+
+                        if(g_task ==DECAY){
+                        	decay(ojpeg,error);
+                        }
+
+                        if(g_task ==RESUME){
+                        	resume(ojpeg,error);
+                        }
+
     
                         free_bitstream(stream);
                         free_jpeg_data(&jpeg);
@@ -858,6 +871,168 @@ static void laplace(struct jpeg_data *jpeg, bool *error){
 			 for(int v=0;v<mcu_v;v++){ //mcu的高
 				 for(int h=0;h<mcu_h&& i*mcu_v+v <height && j*mcu_h+h<width;h++){ //mcu的宽
 					  mcu_blocks[v*mcu_h+ h]= matrix_laplace[i*mcu_v+v][j*mcu_h+h];
+				 }
+			 }
+    	}
+
+    }
+
+}
+
+//退化
+static void decay(struct jpeg_data *jpeg, bool *error){
+    if (error == NULL || *error || jpeg == NULL)
+            return;
+
+    uint32_t *raw = jpeg->raw_data; //从jpeg中读取的像素数据，按mcu排列
+
+    uint32_t nb_h = jpeg->mcu.nb_h; //mcu水平总数
+    uint32_t nb_v = jpeg->mcu.nb_v; //mcu垂直总数
+
+    uint8_t mcu_h = jpeg->mcu.h; //单位mcu水平像元
+    uint8_t mcu_v = jpeg->mcu.v; //单位mcu垂直像元
+    uint32_t mcu_size = mcu_h*mcu_v;   //单个mcu像元数
+
+    uint32_t *mcu_blocks = NULL;  //mcu块
+
+    int width = jpeg->width, height = jpeg->height;  //jpeg图像的宽和长
+
+    //转化成矩阵
+    int32_t matrix[height][width];
+    int32_t matrix_decay[height][width];
+
+
+    for(int i=0;i<nb_v;i++){
+    	for(int j=0;j<nb_h;j++){
+			 mcu_blocks = &raw[(i*nb_h+j)*mcu_size];  //获取一个mcu
+			 for(int v=0;v<mcu_v;v++){ //mcu的高
+				 for(int h=0;h<mcu_h && i*mcu_v+v <height && j*mcu_h+h<width;h++){ //mcu的宽
+					 matrix[i*mcu_v+v][j*mcu_h+h] = mcu_blocks[v*mcu_h+ h];
+				 }
+			 }
+    	}
+
+    }
+    trace("height=%d, width=%d\n", height, width);  //debug
+
+     //加入噪声
+    for(int j=0;j<height;j++){
+    	for(int k=0;k<width;k++){
+ 		   short noise_p = rand() % 10;
+
+ 			if (noise_p == 0){
+ 				int temp = rand() % 2;
+ 				if (temp)
+ 					matrix_decay[j][k] = 0x00;
+ 				else
+ 					matrix_decay[j][k] = 0xff;
+ 			}
+ 			else
+ 				matrix_decay[j][k] = BLUE(matrix[j][k]);
+    	}
+    }
+
+    //写回原图
+
+    for(int i=0;i<nb_v;i++){
+    	for(int j=0;j<nb_h;j++){
+			 mcu_blocks = &raw[(i*nb_h+j)*mcu_size];  //获取一个mcu
+			 for(int v=0;v<mcu_v;v++){ //mcu的高
+				 for(int h=0;h<mcu_h&& i*mcu_v+v <height && j*mcu_h+h<width;h++){ //mcu的宽
+					  mcu_blocks[v*mcu_h+ h]= matrix_decay[i*mcu_v+v][j*mcu_h+h];
+				 }
+			 }
+    	}
+
+    }
+
+}
+
+
+int is_in_array(int i, int j, int height, int width){
+	return  i>0 && i<height && j>0 && j<width;
+}
+
+//恢复
+static void resume(struct jpeg_data *jpeg, bool *error){
+    if (error == NULL || *error || jpeg == NULL)
+            return;
+
+    uint32_t *raw = jpeg->raw_data; //从jpeg中读取的像素数据，按mcu排列
+
+    uint32_t nb_h = jpeg->mcu.nb_h; //mcu水平总数
+    uint32_t nb_v = jpeg->mcu.nb_v; //mcu垂直总数
+
+    uint8_t mcu_h = jpeg->mcu.h; //单位mcu水平像元
+    uint8_t mcu_v = jpeg->mcu.v; //单位mcu垂直像元
+    uint32_t mcu_size = mcu_h*mcu_v;   //单个mcu像元数
+
+    uint32_t *mcu_blocks = NULL;  //mcu块
+
+    int width = jpeg->width, height = jpeg->height;  //jpeg图像的宽和长
+
+    //转化成矩阵
+    int32_t matrix[height][width];
+    int32_t matrix_resume[height][width];
+
+
+    for(int i=0;i<nb_v;i++){
+    	for(int j=0;j<nb_h;j++){
+			 mcu_blocks = &raw[(i*nb_h+j)*mcu_size];  //获取一个mcu
+			 for(int v=0;v<mcu_v;v++){ //mcu的高
+				 for(int h=0;h<mcu_h && i*mcu_v+v <height && j*mcu_h+h<width;h++){ //mcu的宽
+					 matrix[i*mcu_v+v][j*mcu_h+h] = mcu_blocks[v*mcu_h+ h];
+				 }
+			 }
+    	}
+
+    }
+    trace("height=%d, width=%d\n", height, width);  //debug
+     //消除噪声
+    for(int m=0;m<2;m++){
+		int value[9];
+		for(int i=0;i<height;i++){
+			for(int j=0;j<width;j++){
+
+				value[0] = is_in_array(j-1, i-1, height, width) ? matrix[i-1][j-1] : 0;
+				value[1] = is_in_array(j, i-1, height, width) ? matrix[i-1][j] : 0;
+				value[2] = is_in_array(j+1, i-1, height, width) ? matrix[i-1][j+1] : 0;
+				value[3] = is_in_array(j-1, i, height, width) ? matrix[i][j-1] : 0;
+				value[4] = matrix[i][j];
+				value[5] = is_in_array(j+1, i, height, width) ? matrix[i][j+1] : 0;
+				value[6] = is_in_array(j-1, i+1, height, width) ? matrix[i+1][j-1] : 0;
+				value[7] = is_in_array(j, i+1, height, width) ? matrix[i+1][j] : 0;
+				value[8] = is_in_array(j+1, i+1, height, width) ? matrix[i+1][j+1] : 0;
+
+				/* Contra-Harmonic Mean Filter */
+				int Q;
+				if((m&1)==0){
+					Q=2;
+				}else{
+					Q=-2;
+				}
+				double num = 0.0, den = 0.0;
+				for (int k = 0; k < 9; k++){
+					num += pow(BLUE(value[k]), Q+1);
+					den += pow(BLUE(value[k]), Q);
+				}
+				matrix_resume[i][j] = (int)(num / den);
+
+				if (matrix_resume[i][j] < 0x00)
+					matrix_resume[i][j] = 0x00;
+				else if (matrix_resume[i][j] > 0xff)
+					matrix_resume[i][j] = 0xff;
+			}
+		}
+    }
+    //写回原图
+
+    for(int i=0;i<nb_v;i++){
+    	for(int j=0;j<nb_h;j++){
+			 mcu_blocks = &raw[(i*nb_h+j)*mcu_size];  //获取一个mcu
+			 for(int v=0;v<mcu_v;v++){ //mcu的高
+				 for(int h=0;h<mcu_h&& i*mcu_v+v <height && j*mcu_h+h<width;h++){ //mcu的宽
+					  mcu_blocks[v*mcu_h+ h]= matrix_resume[i*mcu_v+v][j*mcu_h+h];
 				 }
 			 }
     	}

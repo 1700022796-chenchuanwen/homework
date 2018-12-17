@@ -66,6 +66,7 @@ struct bitstream *create_bitstream(const char *filename, enum stream_mode mode)
                 /* Open the filename file in open_mode (read, write or both) */
 
                 FILE *file = fopen(utf8ToGbk(filename), open_mode);
+                trace(">> open file   %s", filename);
                 /* Create and initialize the stream */
                 if (file != NULL) {
                         stream = malloc(sizeof(struct bitstream));

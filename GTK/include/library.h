@@ -102,4 +102,6 @@ typedef enum{
 	POW = 4,
 	FFT =5,
 	LAPLACE =6,
+	DECAY =7,
+	RESUME=8,
 }TASK_TYPE_CUSTOM;
