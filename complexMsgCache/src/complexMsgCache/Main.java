@@ -1,5 +1,6 @@
 package complexMsgCache;
 
+import java.util.Random;
 
 public class Main {
 	public static void main(String[] args) {
@@ -44,8 +45,8 @@ public class Main {
 class Global{
 	
 	static int k=8;
-	static int m=5;
-	static int n=1;
+	static int m=3;
+	static int n=5;
 	static int msgCnt =20;
 	
 	static Syn empty = new Syn(k);
@@ -96,19 +97,18 @@ class Producer implements  Runnable{
 					System.out.println(">>生产者"+ID+"在缓冲区"+index+"中生产了消息"+Global.pCount);
 					Global.pCount++; //生产消息数+1
 					
-					Global.readable[i] = true; //可读
+					Global.readable[index] = true; //可读
 					
 					//初始化该缓冲区的被各消费者取走的状态为0
 					for(int j=0;j<Global.n;j++) {
-						Global.record[i][j]= false;
+						Global.record[index][j]= false;
 					}
+					Global.full.Signal();  //通知消费者
 					break;
 				}
 			}
 			//临界区end
 			Global.Mutex.Signal(); //释放数据区
-
-			Global.full.Signal();  //通知消费者
 		
 			Global.pMutex.Signal();  //释放互斥锁			
 
@@ -126,7 +126,7 @@ class Producer implements  Runnable{
 //消费者
 class Consumer implements Runnable{
 	int ID=0;
-	int curIndex =-1;
+	int curIndex = (int)(Math.random()*10);
 	int msg[] = new int[Global.msgCnt];
 	Consumer(){};
 	Consumer(int id){
@@ -141,6 +141,8 @@ class Consumer implements Runnable{
 				//如果已经取了消息数*消费者数上限，则退出临界区
 				//临界区end
 				Global.empty.Signal();
+				Global.full.Signal();  //通知其他消费者
+				
 				Global.cMutex.Signal();
 				System.out.println("消费者取消息达到上限！！！");
 				break;
@@ -156,19 +158,14 @@ class Consumer implements Runnable{
 				if(Global.readable[iIndex] && Global.record[iIndex][ID-1] == false) {
 					//取走消息标记
 					Global.record[iIndex][ID-1] =true;
-//					Global.cCount[ID-1]++;
+					Global.cCount[ID-1]++;
 					System.out.println("消费者"+ID+"在缓冲区"+iIndex+"中取走了消息"+Global.buffer[iIndex]);
-				
-					Global.readable[iIndex]= false;
 					break;
 				}
 			}
 			
-			Global.cCount[ID-1]++;
 			curIndex = iIndex; //下一轮 从下一个缓冲区取，避免饥饿状态
-
-			msg[Global.cCount[ID-1]-1] =Global.buffer[iIndex];
-					
+				
 			boolean isLast = true;
 			//判断是否最后一个读消息的消费者
 			for(int j=0;j<Global.n;j++) {
@@ -181,16 +178,15 @@ class Consumer implements Runnable{
 			
 			//临界区 end
 			if(isLast) {
+				Global.readable[iIndex]= false;
 				System.out.println("（缓冲区"+iIndex+"消息"+Global.buffer[iIndex]+"已经被取空）");
 				Global.empty.Signal();
-//				for(i=0;i<Global.cCount[ID-1];i++) {
-//					System.out.print(msg[i] +" ");
-//				}
+			}else {
+				Global.full.Signal();  //通知其他消费者
 			}
 			
 			Global.Mutex.Signal(); //释放数据区
-			
-			Global.full.Signal();  //通知其他消费者
+
 			Global.cMutex.Signal();
 			
 			
