@@ -14,7 +14,7 @@ CC = gcc ${PROFILING}
 LD = gcc ${PROFILING}
 INC = -I$(INC_DIR)
 #CFLAGS = $(INC) -Wall -std=c99 -Wextra -g
-CFLAGS = $(INC) -Wno-unused-parameter -Wall -std=c99 -O3 -Wextra -s  -DDEBUG
+CFLAGS = $(INC) -Wno-unused-parameter -Wall -std=c99 -O3 -Wextra -s  -DDEBUG -DWIN32
 LDFLAGS = -lm
 
 
@@ -25,6 +25,7 @@ OBJ_FILES += $(OBJ_DIR)/upsampler.o $(OBJ_DIR)/huffman.o $(OBJ_DIR)/unpack.o
 OBJ_FILES += $(OBJ_DIR)/tiff.o $(OBJ_DIR)/library.o $(OBJ_DIR)/bitstream.o
 OBJ_FILES += $(OBJ_DIR)/encode.o $(OBJ_DIR)/decode.o $(OBJ_DIR)/downsampler.o
 OBJ_FILES += $(OBJ_DIR)/loeffler.o $(OBJ_DIR)/pack.o $(OBJ_DIR)/priority_queue.o
+OBJ_FILES += $(OBJ_DIR)/getopt.o
 # OBJ_FILES += $(OBJ_DIR)/dct.o
 
 COMPILE_O = $(OBJ_DIR)/main.o $(OBJ_FILES)
@@ -37,7 +38,7 @@ NEW_OBJ_FILES += $(OBJ_DIR)/library.o $(OBJ_DIR)/huffman.o
 NEW_OBJ_FILES += $(OBJ_DIR)/unpack.o $(OBJ_DIR)/upsampler.o $(OBJ_DIR)/bitstream.o
 NEW_OBJ_FILES += $(OBJ_DIR)/encode.o $(OBJ_DIR)/decode.o $(OBJ_DIR)/downsampler.o
 NEW_OBJ_FILES += $(OBJ_DIR)/loeffler.o $(OBJ_DIR)/pack.o $(OBJ_DIR)/tiff.o
-NEW_OBJ_FILES += $(OBJ_DIR)/dct.o $(OBJ_DIR)/priority_queue.o
+NEW_OBJ_FILES += $(OBJ_DIR)/dct.o $(OBJ_DIR)/priority_queue.o $(OBJ_DIR)/getopt.o
 
 
 

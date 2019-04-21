@@ -1,4 +1,3 @@
-
 #include "library.h"
 #include "decode.h"
 #include "tiff.h"

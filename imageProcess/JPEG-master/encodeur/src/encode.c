@@ -1,4 +1,3 @@
-
 #include "encode.h"
 #include "huffman.h"
 #include "pack.h"

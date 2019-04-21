@@ -4,7 +4,7 @@
 #include "encode.h"
 #include "decode.h"
 #include "library.h"
-
+#include <gtk/gtk.h>
 
 int main(int argc, char **argv)
 {
@@ -17,6 +17,23 @@ int main(int argc, char **argv)
 
 
         int ret = EXIT_SUCCESS;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         /* JPEG Encoding */
         if (options.encode) {
@@ -38,7 +55,7 @@ int main(int argc, char **argv)
                         /* Read input image */
                         read_image(&jpeg, &error);
                         
-
+trace("test\n");
                         /* Enable specific options */
                         process_options(&options, &jpeg, &error);
 
