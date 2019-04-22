@@ -142,7 +142,6 @@ class Consumer implements Runnable{
 				//临界区end
 				Global.empty.Signal();
 				Global.full.Signal();  //通知其他消费者
-				
 				Global.cMutex.Signal();
 				System.out.println("消费者取消息达到上限！！！");
 				break;
